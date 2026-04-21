@@ -14,7 +14,7 @@ CORS(app, supports_credentials=True)
 IS_PROD = os.environ.get('IS_PROD')
 
 if IS_PROD:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://admin:password@/hfweddinghirecarsdb?unix_socket=/cloudsql/project:region:instance'
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://admin:password@/hfweddinghirecarsdb?unix_socket=/cloudsql/hfweddinghirecars-dev:australia-southeast1:cloudsql-mysql-dev'
 
     app.config.update(
         SESSION_COOKIE_SECURE=True,
