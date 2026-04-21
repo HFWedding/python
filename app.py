@@ -11,7 +11,7 @@ app = Flask(__name__)
 app.secret_key = 'bwiohgoiwhbgoiwhjoigbwoi'
 CORS(app, supports_credentials=True)
 
-IS_PROD = os.environ.get('K_SERVICE') is not None
+IS_PROD = os.environ.get('IS_PROD')
 
 if IS_PROD:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://admin:password@/hfweddinghirecarsdb?unix_socket=/cloudsql/project:region:instance'
