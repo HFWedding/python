@@ -25,6 +25,7 @@ else:
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SESSION_COOKIE_SECURE'] = False
 
+print("IS_PROD:", IS_PROD)
 
 db = SQLAlchemy(app)
 
