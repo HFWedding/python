@@ -39,6 +39,10 @@ class User(db.Model):
     last_name = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), nullable=False)
     phone = db.Column(db.String(45), nullable=False)
+    license_number = db.Column(db.String(255), nullable=False)
+    license_type = db.Column(db.String(255), nullable=False)
+    contact_name = db.Column(db.String(255), nullable=False)
+    contact_phone = db.Column(db.String(255), nullable=False)
 
     def to_dict(self):
         return {
@@ -50,7 +54,11 @@ class User(db.Model):
             "phone": self.phone,
             "last_login": self.last_login,
             "role": self.role,
-            "status": self.status
+            "status": self.status,
+            "license_number": self.license_number,
+            "license_type": self.license_type,
+            "contact_name": self.contact_name,
+            "contact_phone": self.contact_phone,
         }
 
 def login_required(f):
@@ -86,8 +94,11 @@ def login():
             "status": "success",
             "message": "Logged in successfully",
             "user": {
+                "id": user.id,
                 "username": user.username,
-                "role": user.role
+                "role": user.role,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
             }
         }), 200
     
@@ -107,6 +118,8 @@ def get_users():
     select_status = request.args.getlist('select_status[]')
 
     query = User.query
+    query = query.filter(User.role == 'Admin')
+
     if search:
         search_filter = f"%{search}%"
         query = query.filter(
@@ -116,7 +129,6 @@ def get_users():
                 User.username.ilike(search_filter),
                 User.email.ilike(search_filter),
                 User.phone.ilike(search_filter),
-                User.last_login.ilike(search_filter),
             )
         )
 
@@ -201,6 +213,132 @@ def update_user(user_id):
         user.email = data.get('email', user.email)
         user.phone = data.get('phone', user.phone)
         user.status = data.get('status', user.status)
+
+        
+        if data.get('password'):
+            user.password = generate_password_hash(data.get('password'))
+            
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"User {user_id} updated successfully"
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/api/driver', methods=['GET'])
+def get_drivers():
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    search = request.args.get('search', '')
+
+    select_date_from = request.args.get('select_date_from', '')
+    select_date_to = request.args.get('select_date_to', '')
+
+    select_status = request.args.getlist('select_status[]')
+
+    query = User.query
+    query = query.filter(User.role == 'Driver')
+
+    if search:
+        search_filter = f"%{search}%"
+        query = query.filter(
+            or_(
+                User.first_name.ilike(search_filter),
+                User.last_name.ilike(search_filter),
+                User.username.ilike(search_filter),
+                User.license_number.ilike(search_filter),
+                User.license_type.ilike(search_filter),
+            )
+        )
+
+    if select_date_from:
+        query = query.filter(User.last_login >= select_date_from)
+
+    if select_date_to:
+        query = query.filter(User.last_login <= select_date_to)
+
+    if select_status:
+        query = query.filter(User.status.in_(select_status))
+    
+    pagination = query.paginate(page=page, per_page=per_page)
+    start_record = (page - 1) * per_page + 1
+    end_record = min(start_record + per_page - 1, pagination.total)
+    
+    return jsonify({
+        "status": "success",
+        "data": [user.to_dict() for user in pagination.items],
+        "pagination": {
+            "total_records": pagination.total,
+            "total_pages": pagination.pages,
+            "current_page": pagination.page,
+            "per_page": per_page,
+            "from": start_record if pagination.total > 0 else 0,
+            "to": end_record if pagination.total > 0 else 0
+        }
+    })
+
+@app.route('/api/driver', methods=['POST'])
+def add_driver():
+    data = request.json
+
+    username = data.get('username')
+    if User.query.filter_by(username=username).first():
+        return jsonify({
+            "status": "error",
+            "message": "Username already exist."
+        }), 400
+
+    hashed_password = generate_password_hash(data.get('password'))
+    new_user = User(
+        first_name=data.get('first_name'),
+        last_name=data.get('last_name'),
+        username=data.get('username'),
+        password=hashed_password,
+        email=data.get('email'),
+        phone=data.get('phone'),
+        role='Driver',
+        status=data.get('status'),
+        license_number=data.get('license_number'),
+        license_type=data.get('license_type'),
+        contact_name=data.get('contact_name'),
+        contact_phone=data.get('contact_phone')
+    )
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({
+            "status": "success",
+            "message": "Add driver successfully",
+            "user": {
+                "id": new_user.id,
+                "role": new_user.role
+            }
+        }), 201
+
+@app.route('/api/driver/<int:user_id>', methods=['PUT'])
+def update_driver(user_id):
+    data = request.json
+    user = User.query.get_or_404(user_id)
+    
+    try:
+        user.first_name = data.get('first_name', user.first_name)
+        user.last_name = data.get('last_name', user.last_name)
+        user.email = data.get('email', user.email)
+        user.phone = data.get('phone', user.phone)
+        user.status = data.get('status', user.status)
+        user.license_number = data.get('license_number', user.license_number)
+        user.license_type = data.get('license_type', user.license_type)
+        user.contact_name = data.get('contact_name', user.contact_name)
+        user.contact_phone = data.get('contact_phone', user.contact_phone)
 
         
         if data.get('password'):
